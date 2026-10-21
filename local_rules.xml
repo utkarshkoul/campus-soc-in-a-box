@@ -1,0 +1,174 @@
+<!-- 
+  Campus SOC-in-a-Box: Custom Detection Rules (20 Rules)
+  File path: /var/ossec/etc/rules/local_rules.xml
+  Syntax verified for Wazuh 4.x
+-->
+<group name="campus_soc,">
+
+  <!-- Rule 1: Port Scan detected via Zeek conn.log -->
+  <rule id="100101" level="8">
+    <match>Zeek-Conn: Multiple rejected connections</match>
+    <description>Campus Recon: Port scanning activity detected across VLAN from $(srcip)</description>
+    <mitre><id>T1046</id></mitre>
+    <group>reconnaissance,zeek,</group>
+  </rule>
+
+  <!-- Rule 2: Campus Portal SSH Authentication Failure -->
+  <rule id="100102" level="10">
+    <match>Failed password for</match>
+    <description>Campus Server: SSH authentication failure detected from $(srcip)</description>
+    <mitre><id>T1110.001</id></mitre>
+    <group>authentication_failed,bruteforce,</group>
+  </rule>
+
+  <!-- Rule 3: Windows Logon Failure (Event 4625) -->
+  <rule id="100103" level="10">
+    <field name="win.system.eventID">^4625$</field>
+    <description>Campus Lab PC: Failed Windows logon attempt (Event 4625)</description>
+    <mitre><id>T1110.001</id></mitre>
+    <group>authentication_failed,windows,</group>
+  </rule>
+
+  <!-- Rule 4: Web Application Directory Traversal -->
+  <rule id="100104" level="9">
+    <regex>\.\./|\.\.\\|etc/passwd|win\.ini</regex>
+    <description>Campus Portal: Web path traversal attempt detected in HTTP request</description>
+    <mitre><id>T1190</id></mitre>
+    <group>web,attack,</group>
+  </rule>
+
+  <!-- Rule 5: Encoded / Hidden PowerShell Execution (Sysmon Event 1) -->
+  <rule id="100105" level="12">
+    <field name="win.eventdata.image">powershell\.exe$</field>
+    <field name="win.eventdata.commandLine">-enc|-encodedcommand|-w hidden|-windowstyle hidden|-nop|-noprofile</field>
+    <description>Campus Endpoint: Obfuscated PowerShell execution detected (Sysmon Event 1)</description>
+    <mitre><id>T1059.001</id></mitre>
+    <group>sysmon,execution,</group>
+  </rule>
+
+  <!-- Rule 6: Living-off-the-Land Binary Download via Certutil -->
+  <rule id="100106" level="11">
+    <field name="win.eventdata.image">certutil\.exe$</field>
+    <field name="win.eventdata.commandLine">-urlcache|-split|-f</field>
+    <description>Campus Endpoint: Certutil used for external file download (Living-off-the-Land)</description>
+    <mitre><id>T1105</id></mitre>
+    <group>sysmon,download_cradle,</group>
+  </rule>
+
+  <!-- Rule 7: Suspicious Script Execution from Temporary Directory -->
+  <rule id="100107" level="10">
+    <field name="win.eventdata.commandLine">C:\\Users\\Public|C:\\Windows\\Temp|C:\\Temp</field>
+    <match>\.bat|\.vbs|\.ps1|\.exe</match>
+    <description>Campus Lab PC: Process execution from untrusted temporary directory</description>
+    <mitre><id>T1059</id></mitre>
+    <group>sysmon,execution,</group>
+  </rule>
+
+  <!-- Rule 8: Unauthorized Windows Scheduled Task Creation -->
+  <rule id="100108" level="9">
+    <field name="win.eventdata.image">schtasks\.exe$</field>
+    <field name="win.eventdata.commandLine">/create</field>
+    <description>Campus Endpoint: Scheduled task created via CLI (Persistence)</description>
+    <mitre><id>T1053.005</id></mitre>
+    <group>sysmon,persistence,</group>
+  </rule>
+
+  <!-- Rule 9: User Added to Windows Local Administrators Group -->
+  <rule id="100109" level="13">
+    <field name="win.system.eventID">^4728$|^4732$</field>
+    <description>Campus Endpoint: User added to local Administrators security group</description>
+    <mitre><id>T1098</id></mitre>
+    <group>privilege_escalation,accounts,</group>
+  </rule>
+
+  <!-- Rule 10: Unauthorized Cron Job Added on Linux Server -->
+  <rule id="100110" level="8">
+    <match>crontab: .* REPLACE</match>
+    <description>Campus Linux Server: User crontab modified (potential persistence)</description>
+    <mitre><id>T1053.003</id></mitre>
+    <group>linux,persistence,</group>
+  </rule>
+
+  <!-- Rule 11: LSASS Process Access (Mimikatz / Credential Dumping) -->
+  <rule id="100111" level="14">
+    <field name="win.eventdata.targetImage">lsass\.exe$</field>
+    <description>CRITICAL: Potential LSASS process memory access detected (Sysmon Event 10)</description>
+    <mitre><id>T1003.001</id></mitre>
+    <group>sysmon,credential_access,</group>
+  </rule>
+
+  <!-- Rule 12: Windows Security Event Log Cleared -->
+  <rule id="100112" level="12">
+    <field name="win.system.eventID">^1102$</field>
+    <description>Defense Evasion: Windows Audit Security Log was cleared</description>
+    <mitre><id>T1070.001</id></mitre>
+    <group>defense_evasion,logs_cleared,</group>
+  </rule>
+
+  <!-- Rule 13: Windows Defender or Firewall Disabled via CLI -->
+  <rule id="100113" level="12">
+    <field name="win.eventdata.commandLine">DisableRealtimeMonitoring|netsh advfirewall set allprofiles state off</field>
+    <description>Defense Evasion: Windows Defender or Firewall disabled via command line</description>
+    <mitre><id>T1562.001</id></mitre>
+    <group>sysmon,defense_evasion,</group>
+  </rule>
+
+  <!-- Rule 14: Lateral Movement via PsExec -->
+  <rule id="100114" level="11">
+    <field name="win.eventdata.commandLine">psexec|psexesvc</field>
+    <description>Lateral Movement: PsExec execution detected inside campus VLAN</description>
+    <mitre><id>T1021.002</id></mitre>
+    <group>lateral_movement,sysmon,</group>
+  </rule>
+
+  <!-- Rule 15: DNS Tunneling Detection (Zeek) -->
+  <rule id="100115" level="10">
+    <match>Zeek-DNS: High query length or NXDOMAIN spike</match>
+    <description>Zeek Network Alert: Suspicious DNS tunneling or C2 domain lookup</description>
+    <mitre><id>T1071.004</id></mitre>
+    <group>zeek,c2,network,</group>
+  </rule>
+
+  <!-- Rule 16: Outbound Connection to Known Proxy / Tor Ports -->
+  <rule id="100116" level="9">
+    <field name="win.eventdata.destinationPort">^9001$|^9050$|^9150$</field>
+    <description>Network Anomaly: Outbound connection to Tor / Darknet port</description>
+    <mitre><id>T1090.003</id></mitre>
+    <group>sysmon,proxy,network,</group>
+  </rule>
+
+  <!-- Rule 17: Administrative Logon Outside Campus Lab Hours -->
+  <rule id="100117" level="10">
+    <time>1:00am - 5:00am</time>
+    <field name="win.eventdata.targetUserName">^Administrator$|^admin$|^root$</field>
+    <description>Campus Anomaly: Privileged user logon outside institutional operating hours</description>
+    <mitre><id>T1078</id></mitre>
+    <group>campus_baseline,anomaly,</group>
+  </rule>
+
+  <!-- Rule 18: Removable USB Mass Storage Detected -->
+  <rule id="100118" level="8">
+    <field name="win.system.eventID">^20001$|^20003$</field>
+    <description>Campus Lab Policy: Removable USB Mass Storage device plugged into workstation</description>
+    <mitre><id>T1091</id></mitre>
+    <group>usb,campus_policy,</group>
+  </rule>
+
+  <!-- Rule 19: Ransomware Canary File Renamed / Encrypted -->
+  <rule id="100119" level="14">
+    <field name="win.eventdata.targetFilename">Campus_Canary</field>
+    <match>\.locked|\.enc</match>
+    <description>CRITICAL: Campus Ransomware Canary file encryption activity detected!</description>
+    <mitre><id>T1486</id></mitre>
+    <group>ransomware,canary,</group>
+  </rule>
+
+  <!-- Rule 20: Plaintext Password Exposure over HTTP/FTP -->
+  <rule id="100120" level="8">
+    <match>Zeek-HTTP: Unencrypted basic auth detected</match>
+    <description>Campus Compliance: Plaintext student/faculty credentials exposed over unencrypted HTTP</description>
+    <mitre><id>T1040</id></mitre>
+    <group>compliance,zeek,credentials,</group>
+  </rule>
+
+</group>
